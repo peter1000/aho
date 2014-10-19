@@ -11,11 +11,12 @@ main(void) {
 	aho_insert(&d, "over");
 	aho_insert(&d, "ove");
 	aho_insert(&d, "version");
+	aho_insert(&d, "ver");
 	aho_insert(&d, "very");
 	aho_insert(&d, "trick");
 	aho_insert(&d, "trie");
 
-	aho_next(&d, "roverie", NULL);
+	aho_next(&d, "roversion", NULL);
 
 	printf("Aho-Corasick done\n");
 

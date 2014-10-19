@@ -5,8 +5,14 @@
 #include <stdbool.h>
 
 
+#ifdef DEBUG
 #define DEBUG(...) printf(__VA_ARGS__);
-#define DEBUG_NODE " -> %c"
+#else
+#define DEBUG(...) 
+#endif
+
+#define DEBUG_NODE_FORMAT "%c"
+#define DEBUG_EMPTY_STR "*"
 
 
 struct node {
@@ -15,6 +21,9 @@ struct node {
 	struct node *back;
 	unsigned char c;
 	bool out;
+#ifdef DEBUG
+	char *prefix;
+#endif
 };
 
 

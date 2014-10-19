@@ -1,6 +1,7 @@
 #include <stdlib.h>
 
 #include "aho.h"
+#include "strbuf.h"
 
 
 #define NODE struct node *
@@ -28,6 +29,8 @@ void
 aho_init(struct dict *d) {
 	// error if d == NULL
 	d->root = node_new();
+	d->root->prefix = DEBUG_EMPTY_STR;
+
 	d->root->parent = d->root;
 	d->changed = false;
 }
@@ -35,7 +38,7 @@ aho_init(struct dict *d) {
 
 int
 aho_insert(struct dict *d, char *sample) {
-	DEBUG("Inserting '%s' into the dictionary: [ *", sample);
+	DEBUG("Inserting '%s' into the dictionary: [%s", sample, DEBUG_EMPTY_STR);
 	d->changed = true; // TODO
 
 	struct node *prev = NULL, *n = d->root;
@@ -45,15 +48,16 @@ aho_insert(struct dict *d, char *sample) {
 		prev = n;
 		n = n->children[c];
 
-		if (n) DEBUG(DEBUG_NODE, c);
+		if (n) DEBUG(DEBUG_NODE_FORMAT, c);
 	}
 
-	DEBUG("%s", " ]");
+	DEBUG("%s", "]");
 
 	if (c == '\0') {
 		if (prev != NULL) {
-			DEBUG("\n\tNothing to add for '%s'\n", sample);
-			prev->out = true;
+			DEBUG(" ... Path already present.\n");
+
+			n->out = true;
 			return (0);
 		}
 
@@ -63,25 +67,34 @@ aho_insert(struct dict *d, char *sample) {
 
 	// extending the trie from `prev` node and `c` is the next char
 
+	strbuf buf;
+	strbuf_init(&buf);
+	strbuf_append(&buf, "%s", prev->prefix);
+
 	do {
-		DEBUG(DEBUG_NODE, c);
+		DEBUG(DEBUG_NODE_FORMAT, c);
 
 		struct node *n = node_new();
 		n->parent = prev;
 		n->c = c;
 		prev = prev->children[c] = n;
+
+		strbuf_append(&buf, "%c", n->c);
+		n->prefix = strbuf_copy(&buf);
 	}
 	while ((c = sample[i++]) != '\0');
 
-	DEBUG("\n\tDone adding '%s'\n", sample);
+	prev->out = true;
 
+	DEBUG(" ... Done.\n");
+	strbuf_free(&buf);
 	return (0);
 }
 
 
 static void
 rebuild(struct dict *d) {
-	DEBUG("%s", "Rebuilding dictionary\n");
+	DEBUG("%s", "Rebuilding dictionary ...\n");
 
 	struct list lst;
 	list_init(&lst);
@@ -91,27 +104,33 @@ rebuild(struct dict *d) {
 
 	struct node *n;
 	while ((n = list_shift(&lst)) != NULL) {
+		// enqueue work
+
 		for (unsigned i = 0; i < 256; i++) { // TODO
 			if (n->children[i] != NULL) {
 				list_append(&lst, n->children[i]);
 			}
 		}
 
-		struct node *back = n->parent->back;
-		while (back != d->root) {
-			if (back->children[n->c] != NULL) {
-				back = back->children[n->c];
+		n->back = n->parent->back;
+		while (true) {
+			if (n->parent == d->root) break;
+
+			if (n->back->children[n->c] != NULL) {
+				n->back = n->back->children[n->c];
 				break;
 			}
 
-			back = back->back;
+			if (n->back == d->root) break;
+			n->back = n->back->back;
 		}
 
-		n->back = back;
-
+		DEBUG("\tS('%s') := '%s'\n", n->prefix, n->back->prefix);
 	}
 
 	list_free(&lst);
+
+	DEBUG("Done rebuilding dictionary.\n");
 }
 
 
@@ -122,6 +141,33 @@ aho_next(struct dict *d, char *str, struct match *m) {
 		d->changed = false;
 	}
 
+	struct node *n = d->root;
+	unsigned i = 0;
+	unsigned char c;
+	while ((c = str[i++]) != '\0') {
+		if (n->children[c] != NULL) {
+			n = n->children[c];
+			DEBUG("Have '%s'\n", n->prefix);
+		} else {
+			do {
+				n = n->back;
+				if (n->children[c] != NULL) {
+					n = n->children[c];
+					break;
+				}
+			} while (n != d->root);
+
+			DEBUG("Missing '%c', transition to '%s'\n", c, n->prefix);
+		}
+
+		if (n->out) {
+			struct node *m = n;
+			while (m != d->root) {
+				if (m->out) DEBUG("Found '%s'\n", m->prefix);
+				m = m->back;
+			}
+		}
+	}
 
 	return (NULL);
 }

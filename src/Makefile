@@ -1,10 +1,10 @@
 .PHONY: clean
 
 CC=gcc
-CFLAGS=-c -std=c11 -Wall
+CFLAGS=-c -std=c11 -Wall -DDEBUG
 LDFLAGS=-Wall
 PROG=aho
-OBJS=aho.o main.o
+OBJS=aho.o main.o strbuf.o
 
 ${PROG}: ${OBJS}
 	${CC} ${LDFLAGS} -o ${PROG} $^
