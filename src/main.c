@@ -1,9 +1,14 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdarg.h>
 
-#include "../src/aho.h"
+#include "aho.h"
 
 
 int
 main(void) {
+	//return (0);
+
 	struct dict d;
 	aho_init(&d);
 

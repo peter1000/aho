@@ -1,20 +1,29 @@
-#include <stdlib.h>
-
 #include "aho.h"
 #include "strbuf.h"
+#include "common.h"
 
 
+/*
+ * Implements list of nodes (used as a simple queue).
+ */
 #define NODE struct node *
 #include "generic/list.inc"
 
 
+/*
+ * Implements hashtable to hold node's children (allows for Unicode support).
+ */
+#define ITEM struct node *
+#define KEY(node) node->c
+#include "generic/hashtable.inc"
+
+
 static struct node *
 node_new() {
-	struct node *n = malloc(sizeof(struct node));
-	// error if n == NULL
+	struct node *n = malloc_safe(sizeof(struct node));
 
-	n->children = calloc(256, sizeof(struct node *)); // TODO
-	// error if n->children == NULL
+	n->children = malloc_safe(sizeof(struct hash)); // TODO why dynamic
+	hash_init(n->children, 3);
 
 	n->parent = NULL;
 	n->back = NULL;
@@ -27,7 +36,6 @@ node_new() {
 
 void
 aho_init(struct dict *d) {
-	// error if d == NULL
 	d->root = node_new();
 	d->root->prefix = DEBUG_EMPTY_STR;
 
@@ -39,14 +47,16 @@ aho_init(struct dict *d) {
 int
 aho_insert(struct dict *d, char *sample) {
 	DEBUG("Inserting '%s' into the dictionary: [%s", sample, DEBUG_EMPTY_STR);
-	d->changed = true; // TODO
+	d->changed = true;
+
+	// find path corresponding to some prefix of the sample if it exists
 
 	struct node *prev = NULL, *n = d->root;
 	unsigned i = 0;
 	unsigned char c;
 	while (n != NULL && (c = sample[i++]) != '\0') {
 		prev = n;
-		n = n->children[c];
+		n = hash_find(n->children, c);
 
 		if (n) DEBUG(DEBUG_NODE_FORMAT, c);
 	}
@@ -55,17 +65,17 @@ aho_insert(struct dict *d, char *sample) {
 
 	if (c == '\0') {
 		if (prev != NULL) {
-			DEBUG(" ... Path already present.\n");
+			DEBUG(" ... Path already exists.\n");
 
 			n->out = true;
 			return (0);
 		}
 
-		// error, cannot insert the empty string
+		DEBUG("Cannot insert empty string.\n");
 		return (1);
 	}
 
-	// extending the trie from `prev` node and `c` is the next char
+	// extending the trie (starting with `prev` node and `c` is next char)
 
 	strbuf buf;
 	strbuf_init(&buf);
@@ -77,14 +87,14 @@ aho_insert(struct dict *d, char *sample) {
 		struct node *n = node_new();
 		n->parent = prev;
 		n->c = c;
-		prev = prev->children[c] = n;
+		prev = hash_insert(prev->children, n);
 
 		strbuf_append(&buf, "%c", n->c);
-		n->prefix = strbuf_copy(&buf);
+		n->prefix = strbuf_copy(&buf); // copy the prefix into the node
 	}
 	while ((c = sample[i++]) != '\0');
 
-	prev->out = true;
+	prev->out = true; // some sample ends here
 
 	DEBUG(" ... Done.\n");
 	strbuf_free(&buf);
@@ -94,7 +104,7 @@ aho_insert(struct dict *d, char *sample) {
 
 static void
 rebuild(struct dict *d) {
-	DEBUG("%s", "Rebuilding dictionary ...\n");
+	DEBUG("%s", "Calculating the transition function S...\n");
 
 	struct list lst;
 	list_init(&lst);
@@ -106,18 +116,17 @@ rebuild(struct dict *d) {
 	while ((n = list_shift(&lst)) != NULL) {
 		// enqueue work
 
-		for (unsigned i = 0; i < 256; i++) { // TODO
-			if (n->children[i] != NULL) {
-				list_append(&lst, n->children[i]);
+		for (unsigned i = 0; i < 256; i++) { // TODO oh not this
+			if (hash_contains(n->children, i)) {
+				list_append(&lst, hash_find(n->children, i));
 			}
 		}
 
 		n->back = n->parent->back;
 		while (true) {
 			if (n->parent == d->root) break;
-
-			if (n->back->children[n->c] != NULL) {
-				n->back = n->back->children[n->c];
+			if (hash_contains(n->back->children, n->c)) {
+				n->back = hash_find(n->back->children, n->c);
 				break;
 			}
 
@@ -130,7 +139,7 @@ rebuild(struct dict *d) {
 
 	list_free(&lst);
 
-	DEBUG("Done rebuilding dictionary.\n");
+	DEBUG("Done.\n");
 }
 
 
@@ -145,14 +154,14 @@ aho_next(struct dict *d, char *str, struct match *m) {
 	unsigned i = 0;
 	unsigned char c;
 	while ((c = str[i++]) != '\0') {
-		if (n->children[c] != NULL) {
-			n = n->children[c];
+		if (hash_contains(n->children, c)) {
+			n = hash_find(n->children, c);
 			DEBUG("Have '%s'\n", n->prefix);
 		} else {
 			do {
 				n = n->back;
-				if (n->children[c] != NULL) {
-					n = n->children[c];
+				if (hash_contains(n->children, c)) {
+					n = hash_find(n->children, c);
 					break;
 				}
 			} while (n != d->root);
@@ -175,5 +184,5 @@ aho_next(struct dict *d, char *str, struct match *m) {
 
 void
 aho_free(struct dict *d) {
-
+	// TODO
 }

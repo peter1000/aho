@@ -28,15 +28,15 @@ void strbuf_resize(strbuf *buf, size_t new_size);
 
 
 /*
- * Print at a specific offset of the buffer (va_list).
+ * Print at specific offset of the buffer.
  */
-void strbuf_vprintf_at(strbuf *buf, size_t offset, char *format, va_list args);
+void strbuf_printf(strbuf *buf, size_t offset, char *format, ...);
 
 
 /*
- * Print at a specific offset of the buffer.
+ * Print at specific offset of the buffer (va_list).
  */
-void strbuf_printf(strbuf *buf, size_t offset, char *format, ...);
+void strbuf_vprintf_at(strbuf *buf, size_t offset, char *format, va_list args);
 
 
 /*
@@ -46,13 +46,13 @@ void strbuf_append(strbuf *buf, char *format, ...);
 
 
 /*
- * Copy the string into different memory and return the only pointer to it.
+ * Copy the string and return pointer to the copy.
  */
 char *strbuf_copy(strbuf *buf); 
 
 
 /*
- * Free memory used by the buffer.
+ * Free all memory used by the buffer.
  */
 void strbuf_free(strbuf *buf);
 

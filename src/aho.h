@@ -1,53 +1,64 @@
 #ifndef AHO_H_
 #define AHO_H_
 
-#include <stdio.h>
-#include <stdbool.h>
+#include "common.h"
 
-
-#ifdef DEBUG
-#define DEBUG(...) printf(__VA_ARGS__);
-#else
-#define DEBUG(...) 
-#endif
 
 #define DEBUG_NODE_FORMAT "%c"
 #define DEBUG_EMPTY_STR "*"
 
 
+/*
+ * Trie node.
+ */
 struct node {
-	struct node *parent;
-	struct node **children;
-	struct node *back;
-	unsigned char c;
+	struct node *parent, *back;
+	struct hash *children; // generic hashtable (see aho.c)
+	uint c;
 	bool out;
-#ifdef DEBUG
 	char *prefix;
-#endif
 };
 
 
+/*
+ * Sample dictionary.
+ */
 struct dict {
 	struct node *root;
 	bool changed;
 };
 
 
+/*
+ * A search match.
+ */
 struct match {
 	char *sample;
 	unsigned offset;
 };
 
 
+/*
+ * Initialize new dictionary.
+ */
 void aho_init(struct dict *d);
 
 
+/*
+ * Insert a sample into the dictionary.
+ */
 int aho_insert(struct dict *d, char *sample);
 
 
+/*
+ * Get next matched sample.
+ */
 struct match *aho_next(struct dict *d, char *str, struct match *m);
 
 
+/*
+ * Free memory used by the dictionary.
+ */
 void aho_free(struct dict *d);
 
 
