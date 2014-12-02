@@ -1,3 +1,12 @@
+/*
+ * aho.c: Aho-Corasick string matcher
+ *
+ * This software may be freely used and distributed according to the terms
+ * of the GNU GPL.
+ *
+ * Created by David Čepelík <david@cepelik.eu> in 2014.
+ */
+
 #include <string.h>
 
 #include "aho.h"
@@ -25,7 +34,7 @@ node_new() {
 	struct node *n = malloc_safe(sizeof(struct node));
 
 	n->children = malloc_safe(sizeof(struct hash)); // TODO static alloc
-	hash_init(n->children, 3);
+	hash_init(n->children, AHO_INIT_HASH_SIZE);
 
 	n->parent = NULL;
 	n->back = NULL;
@@ -73,6 +82,7 @@ aho_insert(struct dict *d, char *sample) {
 			AHO_DEBUG(" ... Path already exists.\n");
 
 			n->out = true;
+			n->sample = sample;
 			return (0);
 		}
 
@@ -131,9 +141,11 @@ rebuild(struct dict *d) {
 	while ((n = list_shift(&lst)) != NULL) {
 		// enqueue work
 
-		for (uint i = 0; i < 256; i++) { // TODO Unicode
-			if (hash_contains(n->children, i)) {
-				list_append(&lst, hash_find(n->children, i));
+		for (uint i = 0; i < n->children->size; i++) {
+			// this would deserve support other than hash_each()
+
+			if (n->children->items[i] != NULL) {
+				list_append(&lst, n->children->items[i]);
 			}
 		}
 
@@ -192,7 +204,6 @@ aho_next(struct dict *d, struct state *s, struct match *m) {
 			return (0);
 		}
 	}
-
 
 	unsigned char c;
 	while ((c = s->str[i++]) != '\0') {

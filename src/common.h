@@ -1,3 +1,12 @@
+/*
+ * common.h: Shared functions and macro definitions
+ *
+ * This software may be freely used and distributed according to the terms
+ * of the GNU GPL.
+ *
+ * Created by David Čepelík <david@cepelik.eu> in 2014.
+ */
+
 #ifndef COMMON_H
 #define COMMON_H
 
@@ -12,6 +21,7 @@
 
 
 typedef unsigned int uint;
+typedef unsigned int unicode;
 
 
 /*

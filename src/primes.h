@@ -1,3 +1,12 @@
+/*
+ * primes.h: Prime manipulation
+ *
+ * This software may be freely used and distributed according to the terms
+ * of the GNU GPL.
+ *
+ * Created by David Čepelík <david@cepelik.eu> in 2014.
+ */
+
 #ifndef PRIMES_H
 #define PRIMES_H
 

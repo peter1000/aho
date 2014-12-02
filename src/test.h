@@ -1,3 +1,12 @@
+/*
+ * test.c: Minimalist environment for TDD
+ *
+ * This software may be freely used and distributed according to the terms
+ * of the GNU GPL.
+ *
+ * Created by David Čepelík <david@cepelik.eu> in 2014.
+ */
+
 #ifndef TEST_H
 #define TEST_H
 
@@ -12,6 +21,7 @@
 #define ASSERT_NOT_NULL(x)  if (x == NULL) fail(__FILE__, __LINE__, "%s is not null", #x); else pass();
 #define ASSERT_TRUE(x) if (!x) fail(__FILE__, __LINE__, "%s is true", #x); else pass();
 #define ASSERT_FALSE(x) if (x) fail(__FILE__, __LINE__, "%s is false", #x); else pass();
+#define FAIL(msg) fail(__FILE__, __LINE__, msg);
 
 
 /*

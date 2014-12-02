@@ -1,3 +1,12 @@
+/*
+ * strbuf.c: Growing string buffer
+ *
+ * This software may be freely used and distributed according to the terms
+ * of the GNU GPL.
+ *
+ * Created by David Čepelík <david@cepelik.eu> in 2014.
+ */
+
 #include <stdlib.h>
 #include <stdio.h>
 

@@ -1,3 +1,12 @@
+/*
+ * aho.test.c: Tests of the Aho-Corasick string matcher
+ *
+ * This software may be freely used and distributed according to the terms
+ * of the GNU GPL.
+ *
+ * Created by David Čepelík <david@cepelik.eu> in 2014.
+ */
+
 #include <string.h>
 
 #include "test.h"
@@ -21,7 +30,7 @@ aho_test_init(void) {
 
 
 void
-aho_test_insert(void) {
+aho_test_insert_and_search(void) {
 	aho_init(&d);
 
 	char *samples[] = {
@@ -67,5 +76,5 @@ aho_tests(void) {
 	TEST_HEADER();
 
 	aho_test_init();
-	aho_test_insert();
+	aho_test_insert_and_search();
 }
