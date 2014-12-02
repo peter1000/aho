@@ -1,19 +1,13 @@
 #ifndef COMMON_H
 #define COMMON_H
 
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 
-#ifdef DEBUG
-#undef DEBUG
 #define DEBUG(...) printf(__VA_ARGS__);
-#else
-#define DEBUG(...) 
-#endif
-
-
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(*(arr)))
 
 

@@ -18,7 +18,7 @@ struct P(wrapper) {
 
 struct P(list) {
 	struct P(wrapper) *head, *tail;
-	unsigned count;
+	uint count;
 };
 
 
@@ -31,7 +31,7 @@ P(list_init)(struct P(list) *lst) {
 
 static struct P(wrapper) *
 wrapper_new(NODE n) {
-	struct P(wrapper) *w = malloc(sizeof(struct P(wrapper)));
+	struct P(wrapper) *w = malloc_safe(sizeof(struct P(wrapper)));
 	// error if w == NULL
 
 	w->next = NULL;
@@ -67,7 +67,13 @@ P(list_shift)(struct P(list) *lst) {
 
 void
 P(list_free)(struct P(list) *lst) {
+	struct P(wrapper) *w = lst->head, *tmp;
+	while (w != NULL) {
+		tmp = w;
+		w = w->next;
 
+		free(tmp);
+	}
 }
 
 

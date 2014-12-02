@@ -1,7 +1,7 @@
-#ifndef STRBUF_H_
-#define STRBUF_H_
+#ifndef STRBUF_H
+#define STRBUF_H
 
-#include <stdarg.h>
+#include "common.h"
 
 
 #define STRBUF_INIT_SIZE 1024

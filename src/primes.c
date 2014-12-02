@@ -22,8 +22,8 @@ static uint primes[] = { 3, 7, 13, 19, 29, 37, 53, 67, 89, 109, 137, 173, 211,
 };
 
 
-unsigned
-some_prime_greater_than(unsigned n) {
+uint
+some_prime_greater_than(uint n) {
 	for (int i = 0; i < ARRAY_SIZE(primes); i++) {
 		if (primes[i] > n) {
 			return (primes[i]);

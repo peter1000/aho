@@ -6,8 +6,7 @@
 
 void
 strbuf_resize(strbuf *buf, size_t new_size) {
-	buf->str = realloc(buf->str, new_size + 1);
-	// error if buf->str == NULL
+	buf->str = realloc_safe(buf->str, new_size + 1);
 
 	buf->size = new_size;
 	buf->offset = buf->offset < buf->size ? buf->offset : buf->size;
@@ -68,8 +67,8 @@ strbuf_append(strbuf *buf, char *format, ...) {
 
 char *
 strbuf_copy(strbuf *buf) {
-	char *str = malloc(sizeof(buf->offset) + 1);
-	for (unsigned i = 0; i < buf->offset; i++) {
+	char *str = malloc(buf->offset + 1);
+	for (uint i = 0; i < buf->offset; i++) {
 		str[i] = buf->str[i];
 	}
 	str[buf->offset] = '\0';

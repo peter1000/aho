@@ -1,5 +1,13 @@
-#include <stdlib.h>
 #include "../primes.h"
+#include "../common.h"
+
+
+#ifndef HASH_DEBUG
+#define HASH_DEBUG(...)
+#else
+#undef 	HASH_DEBUG
+#define HASH_DEBUG(...) DEBUG(__VA_ARGS__)
+#endif
 
 
 #ifndef PREFIX
@@ -23,14 +31,14 @@
 
 struct P(hash) {
 	ITEM *items;
-	unsigned size, count;
+	uint size, count;
 };
 
 
-int
-P(hash_init)(struct P(hash) *t, unsigned size) {
+static int
+P(hash_init)(struct P(hash) *t, uint size) {
 	if (size == 0) {
-		DEBUG("Table size must be a positive number.\n");
+		HASH_DEBUG("Table size must be a positive number.\n");
 		return (-1);
 	}
 
@@ -44,23 +52,23 @@ P(hash_init)(struct P(hash) *t, unsigned size) {
 }
 
 
-ITEM
+static ITEM
 P(hash_insert)(struct P(hash) *t, ITEM item);
 
 
 static int
-resize(struct P(hash) *t, unsigned new_size) {
-	//DEBUG("Resizing hashtable... ");
+resize(struct P(hash) *t, uint new_size) {
+	HASH_DEBUG("Resizing hashtable... ");
 
 	ITEM *items = t->items; // "old" items (items in the original table)
-	unsigned old_size = t->size;
+	uint old_size = t->size;
 
 	if (P(hash_init)(t, new_size) == -1) {
 		free(items);
 		return (-1);
 	}
 
-	for (unsigned i = 0; i < old_size; i++) {
+	for (uint i = 0; i < old_size; i++) {
 		if (items[i] != NULL) P(hash_insert)(t, items[i]);
 	}
 
@@ -69,20 +77,20 @@ resize(struct P(hash) *t, unsigned new_size) {
 }
 
 
-static unsigned
-hash(unsigned k, unsigned m) { // TODO
+static uint
+hash(uint k, uint m) { // TODO
 	return k % m;
 }
 
 
-ITEM
+static ITEM
 P(hash_insert)(struct P(hash) *t, ITEM item) {
 	if (t->count + 1 > t->size) {
-		DEBUG("The hashtable is full. Is HASH_MAX_LOAD reasonable?\n");
+		HASH_DEBUG("The hashtable is full. Is HASH_MAX_LOAD reasonable?\n");
 		return NULL;
 	}
 
-	unsigned h = hash(KEY(item), t->size);
+	uint h = hash(KEY(item), t->size);
 
 	// find empty slot (at least one exists)
 	while (t->items[h] != NULL) {
@@ -101,9 +109,9 @@ P(hash_insert)(struct P(hash) *t, ITEM item) {
 }
 
 
-unsigned // TODO bool
-P(hash_contains)(struct P(hash) *t, unsigned key) {
-	unsigned h = hash(key, t->size);
+static uint // TODO bool
+P(hash_contains)(struct P(hash) *t, uint key) {
+	uint h = hash(key, t->size);
 
 	while (t->items[h] != NULL) {
 		if (KEY(t->items[h]) == key) return 1;
@@ -114,17 +122,32 @@ P(hash_contains)(struct P(hash) *t, unsigned key) {
 }
 
 
-ITEM
-P(hash_find)(struct P(hash) *t, unsigned key) {
-	unsigned h = hash(key, t->size);
+static ITEM
+P(hash_find)(struct P(hash) *t, uint key) {
+	uint h = hash(key, t->size);
 
 	// the cycle prevents infinite loop when a miss occurs in a full table
-	for (unsigned i = 0; i < t->size; i++) {
+	for (uint i = 0; i < t->size; i++) {
 		if (t->items[h] == NULL || KEY(t->items[h]) == key) break;
 		h = (h + 1) % t->size;
 	}
 
 	return (t->items[h]);
+}
+
+
+static void
+P(hash_each)(struct P(hash) *t, void (*f)(ITEM)) {
+	for (uint i = 0; i < t->size; i++) {
+		if (t->items[i] == NULL) continue;
+		f(t->items[i]);
+	}
+}
+
+
+static void
+P(hash_free)(struct P(hash) *t) {
+	free(t->items);
 }
 
 

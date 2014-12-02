@@ -1,3 +1,5 @@
+#include <string.h>
+
 #include "aho.h"
 #include "strbuf.h"
 #include "common.h"
@@ -22,7 +24,7 @@ static struct node *
 node_new() {
 	struct node *n = malloc_safe(sizeof(struct node));
 
-	n->children = malloc_safe(sizeof(struct hash)); // TODO why dynamic
+	n->children = malloc_safe(sizeof(struct hash)); // TODO static alloc
 	hash_init(n->children, 3);
 
 	n->parent = NULL;
@@ -36,75 +38,88 @@ node_new() {
 
 void
 aho_init(struct dict *d) {
-	d->root = node_new();
-	d->root->prefix = DEBUG_EMPTY_STR;
-
-	d->root->parent = d->root;
 	d->changed = false;
+
+	d->root = node_new();
+	d->root->parent = d->root;
+
+#ifdef  AHO_DEBUG
+	d->root->prefix = NULL;
+#endif
 }
 
 
 int
 aho_insert(struct dict *d, char *sample) {
-	DEBUG("Inserting '%s' into the dictionary: [%s", sample, DEBUG_EMPTY_STR);
+	AHO_DEBUG("Inserting '%s' into the dictionary: [", sample);
 	d->changed = true;
 
 	// find path corresponding to some prefix of the sample if it exists
 
 	struct node *prev = NULL, *n = d->root;
-	unsigned i = 0;
+	uint i = 0;
 	unsigned char c;
 	while (n != NULL && (c = sample[i++]) != '\0') {
 		prev = n;
 		n = hash_find(n->children, c);
 
-		if (n) DEBUG(DEBUG_NODE_FORMAT, c);
+		if (n != NULL) AHO_DEBUG(AHO_DEBUG_NODE_FORMAT, c);
 	}
 
-	DEBUG("%s", "]");
+	AHO_DEBUG("%s", "]");
 
 	if (c == '\0') {
 		if (prev != NULL) {
-			DEBUG(" ... Path already exists.\n");
+			AHO_DEBUG(" ... Path already exists.\n");
 
 			n->out = true;
 			return (0);
 		}
 
-		DEBUG("Cannot insert empty string.\n");
+		AHO_DEBUG("Cannot insert empty string.\n");
 		return (1);
 	}
 
 	// extending the trie (starting with `prev` node and `c` is next char)
 
+#ifdef  AHO_DEBUG
 	strbuf buf;
 	strbuf_init(&buf);
-	strbuf_append(&buf, "%s", prev->prefix);
+	if (prev->prefix != NULL) strbuf_append(&buf, "%s", prev->prefix);
+#endif
 
 	do {
-		DEBUG(DEBUG_NODE_FORMAT, c);
+		AHO_DEBUG(AHO_DEBUG_NODE_FORMAT, c);
 
 		struct node *n = node_new();
 		n->parent = prev;
 		n->c = c;
-		prev = hash_insert(prev->children, n);
+		hash_insert(prev->children, n);
+		prev = n;
 
+#ifdef  AHO_DEBUG
 		strbuf_append(&buf, "%c", n->c);
 		n->prefix = strbuf_copy(&buf); // copy the prefix into the node
+#endif
 	}
 	while ((c = sample[i++]) != '\0');
 
-	prev->out = true; // some sample ends here
+	prev->out = true; // sample ends here
+	prev->sample = sample;
 
-	DEBUG(" ... Done.\n");
+	AHO_DEBUG(" ... Done.\n");
+
+#ifdef  AHO_DEBUG
 	strbuf_free(&buf);
+#endif
+
 	return (0);
 }
 
 
 static void
 rebuild(struct dict *d) {
-	DEBUG("%s", "Calculating the transition function S...\n");
+	AHO_DEBUG("%s", "Calculating the transition function S...\n");
 
 	struct list lst;
 	list_init(&lst);
@@ -116,7 +131,7 @@ rebuild(struct dict *d) {
 	while ((n = list_shift(&lst)) != NULL) {
 		// enqueue work
 
-		for (unsigned i = 0; i < 256; i++) { // TODO oh not this
+		for (uint i = 0; i < 256; i++) { // TODO Unicode
 			if (hash_contains(n->children, i)) {
 				list_append(&lst, hash_find(n->children, i));
 			}
@@ -134,29 +149,56 @@ rebuild(struct dict *d) {
 			n->back = n->back->back;
 		}
 
-		DEBUG("\tS('%s') := '%s'\n", n->prefix, n->back->prefix);
+		AHO_DEBUG("\tS('%s') := '%s'\n", n->prefix, n->back->prefix);
 	}
 
 	list_free(&lst);
 
-	DEBUG("Done.\n");
+	AHO_DEBUG("Done.\n");
 }
 
 
-struct match *
-aho_next(struct dict *d, char *str, struct match *m) {
+void
+aho_reset(struct dict *d, struct state *s, char *str) {
+	s->str = str;
+	s->cur_node = d->root;
+	s->offset = 0;
+	s->back_node = d->root;
+}
+
+
+int
+aho_next(struct dict *d, struct state *s, struct match *m) {
 	if (d->changed) {
 		rebuild(d);
 		d->changed = false;
+
+		// added new samples, start over (prevents undefined behaviour)
+		aho_reset(d, s, s->str);
 	}
 
-	struct node *n = d->root;
-	unsigned i = 0;
+	uint i = s->offset;
+	struct node *n = s->cur_node;
+
+	if (s->back_node != d->root) {
+		do {
+			s->back_node = s->back_node->back;
+		} while (!s->back_node->out && s->back_node != d->root);
+		
+		if (s->back_node->out) {
+			m->sample = s->back_node->sample;
+			m->offset = i - strlen(m->sample);
+
+			return (0);
+		}
+	}
+
+
 	unsigned char c;
-	while ((c = str[i++]) != '\0') {
+	while ((c = s->str[i++]) != '\0') {
 		if (hash_contains(n->children, c)) {
 			n = hash_find(n->children, c);
-			DEBUG("Have '%s'\n", n->prefix);
+			AHO_DEBUG("Have '%s'\n", n->prefix);
 		} else {
 			do {
 				n = n->back;
@@ -166,23 +208,43 @@ aho_next(struct dict *d, char *str, struct match *m) {
 				}
 			} while (n != d->root);
 
-			DEBUG("Missing '%c', transition to '%s'\n", c, n->prefix);
+			AHO_DEBUG("Missing '%c', transition to '%s'\n", c, n->prefix);
 		}
 
 		if (n->out) {
-			struct node *m = n;
-			while (m != d->root) {
-				if (m->out) DEBUG("Found '%s'\n", m->prefix);
-				m = m->back;
-			}
+			s->cur_node = s->back_node = n;
+			s->offset = i;
+
+			m->sample = n->sample;
+			m->offset = i - strlen(m->sample);
+
+			return (0);
 		}
 	}
 
-	return (NULL);
+	return (-1);
+}
+
+
+void
+node_free(struct node *n) {
+	hash_each(n->children, &node_free);
+
+	// free memory used by the hash vs. free struct hash (2 hours to debug)
+	hash_free(n->children);
+	free(n->children);
+
+#ifdef  AHO_DEBUG
+	if (n->prefix != NULL) { // prevents segvault on the root
+		free(n->prefix);
+	}
+#endif
+
+	free(n);
 }
 
 
 void
 aho_free(struct dict *d) {
-	// TODO
+	node_free(d->root);
 }
