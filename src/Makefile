@@ -10,11 +10,10 @@ ${PROG}: ${OBJS}
 	${CC} ${LDFLAGS} -o ${PROG} $^
 
 aho.o: aho.c aho.h strbuf.h common.h
-	${CC} ${LDFLAGS} -o ${PROG} $^
+	${CC} ${CFLAGS} -o $@ $<
 
-main.o: main.c main.h test.h aho.h common.h
-	${CC} ${LDFLAGS} -o ${PROG} $^
-
+main.o: main.c test.h aho.h common.h
+	${CC} ${CFLAGS} -o $@ $<
 
 %.o: %.c %.h common.h
 	${CC} ${CFLAGS} -o $@ $<

@@ -30,6 +30,24 @@ aho_test_init(void) {
 
 
 void
+insert_samples(char *samples[]) {
+	for (uint i = 0; i < ARRAY_SIZE(samples); i++) {
+		aho_insert(&d, samples[i]);
+	}
+}
+
+
+void
+aho_test_search() {
+	char *samples[] = {
+		"a"
+	};
+
+	insert_samples(samples);
+}
+
+
+void
 aho_test_insert_and_search(void) {
 	aho_init(&d);
 
