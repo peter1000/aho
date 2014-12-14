@@ -11,6 +11,8 @@
 #include "test.h"
 #include "aho.h"
 
+#include <stdio.h>
+
 
 void strbuf_tests(void);
 void hash_tests(void);
@@ -21,27 +23,25 @@ void
 aho_test_adhoc(void) {
 	TEST_HEADER();
 
-	char *samples[] = {
-		"vzorek",
-		"vzorecek",
-		"vzor",
-		"rek",
-		"receklace", // :) 
-		"rektor",
-		"korek",
-		"korektur"
-	};
-
-	char *str = "vzorek korektur rektoru naznacil, jak rekl rek, ze vzorecek z radikalu nese stopy receklace materialu";
+	FILE *f = fopen("aho-test.txt", "r");
 
 	// 1. define and initialize a dictionary
 	struct dict d;
 	aho_init(&d);
 
+	int sample_count;
+	fscanf(f, "%i", &sample_count);
+
 	// 2. insert samples into the dictionary
-	for (uint i = 0; i < ARRAY_SIZE(samples); i++) {
-		aho_insert(&d, samples[i]);
+	for (uint i = 0; i < sample_count; i++) {
+		char *sample = malloc(512);
+		fscanf(f, "%s", sample);
+
+		aho_insert(&d, sample);
 	}
+
+	char str[65535];
+	fscanf(f, "%s", str);
 
 	// 3. reset internal FSM
 	struct state s;
@@ -56,17 +56,19 @@ aho_test_adhoc(void) {
 
 	// 5. everyone shall be free
 	aho_free(&d);
+
+	fclose(f);
 }
 
 
 int
 main(void) {
 	printf("Running all tests...\n");
+	aho_test_adhoc();
+
 	strbuf_tests();
 	hash_tests();
 	aho_tests();
-
-	aho_test_adhoc();
 
 	printf("\nDone.\n");
 

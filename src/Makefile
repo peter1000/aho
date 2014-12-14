@@ -9,7 +9,7 @@ OBJS=aho.o aho.test.o common.o main.o primes.o strbuf.o strbuf.test.o test.o gen
 ${PROG}: ${OBJS}
 	${CC} ${LDFLAGS} -o ${PROG} $^
 
-aho.o: aho.c aho.h strbuf.h common.h
+aho.o: aho.c aho.h strbuf.h common.h avl.h avl.c
 	${CC} ${CFLAGS} -o $@ $<
 
 main.o: main.c test.h aho.h common.h

@@ -13,17 +13,15 @@
 #include "aho.h"
 
 
-#define AHO_TEST_STR "roversioneckaledakar"
-
-
 struct dict d;
 
 
 void
 aho_test_init(void) {
 	aho_init(&d);
+
 	ASSERT_NOT_NULL(d.root);
-	ASSERT_FALSE(d.changed);
+	ASSERT_TRUE(d.changed);
 
 	aho_free(&d);
 }
@@ -38,23 +36,13 @@ insert_samples(char *samples[]) {
 
 
 void
-aho_test_search() {
-	char *samples[] = {
-		"a"
-	};
-
-	insert_samples(samples);
-}
-
-
-void
 aho_test_insert_and_search(void) {
 	aho_init(&d);
 
 	char *samples[] = {
-		"ove",
 		"over",
 		"rover",
+		"ove",    // "ove" WILL NOT be found (covered by "rover")
 		"ver",
 		"very",
 		"version",
@@ -72,18 +60,116 @@ aho_test_insert_and_search(void) {
 		aho_insert(&d, samples[i]);
 	}
 
-	char *str = AHO_TEST_STR;
+	char *str = "roversioneckaledakar";
 
-	struct match m;
 	struct state s;
-	aho_reset(&d, &s, str);
+	struct match m;
+
 
 	// match is claimed at x => sample is at x
+
+	aho_reset(&d, &s, str);
 	while (aho_next(&d, &s, &m) != -1) {
 		ASSERT_EQUAL(strstr(str, m.sample) - str, m.offset);
 	}
 
-	// sample is at x => match is claimed at x
+
+	// sample is at x => match is found at x (if not covered by other sample)
+
+	char *should_find[] = {
+		"over",
+		"ove",
+		"rover",
+		"ver",
+		"version",
+		"neck",
+		"ale",
+		"aleda",
+		"led",
+		"leda",
+		"dakar"
+	};
+
+	for (uint i = 0; i < ARRAY_SIZE(should_find); i++) {
+		bool found = false;
+
+		aho_reset(&d, &s, str);
+		while (aho_next(&d, &s, &m) != -1) {
+
+			if (strcmp(m.sample, should_find[i]) == 0) {
+				ASSERT_EQUAL(m.offset, strstr(str, m.sample) - str);
+				found = true;
+				break;
+			}
+		}
+
+		if (!found) FAIL("sample '%s' will be found", should_find[i]);
+	}
+
+	aho_free(&d);
+}
+
+
+void
+aho_test_search_empty_dict() {
+	aho_init(&d);
+
+	struct state s;
+	aho_reset(&d, &s, "abcd");
+	struct match m;
+
+	ASSERT_EQUAL(aho_next(&d, &s, &m), -1);
+
+	aho_free(&d);
+}
+
+
+void
+aho_test_search_empty_string() {
+	aho_init(&d);
+
+	char *samples[] = {
+		"a",
+		"b",
+		"c",
+		"d",
+	};
+	insert_samples(samples);
+
+	struct state s;
+	aho_reset(&d, &s, "");
+
+	struct match m;
+	ASSERT_EQUAL(aho_next(&d, &s, &m), -1);
+
+	aho_free(&d);
+}
+
+
+void
+aho_test_search() {
+	aho_init(&d);
+
+	char *samples[] = {
+		"a"
+	};
+	insert_samples(samples);
+
+	ASSERT_TRUE(d.changed);
+
+	char *str = "aaaaaa";
+
+	struct state s;
+	aho_reset(&d, &s, str);
+
+	struct match m;
+	for (uint i = 0; i < strlen(str); i++) {
+		ASSERT_EQUAL(aho_next(&d, &s, &m), 0);
+		ASSERT_MATCH(m.sample, samples[0]);
+		ASSERT_EQUAL(m.offset, i);
+	}
+
+	ASSERT_FALSE(d.changed);
 
 	aho_free(&d);
 }
@@ -95,4 +181,7 @@ aho_tests(void) {
 
 	aho_test_init();
 	aho_test_insert_and_search();
+	aho_test_search_empty_dict();
+	aho_test_search_empty_string();
+	aho_test_search();
 }

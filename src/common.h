@@ -18,6 +18,7 @@
 
 #define DEBUG(...) printf(__VA_ARGS__);
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(*(arr)))
+#define MAX(a, b)  ((a) < (b) ? (b) : (a))
 
 
 typedef unsigned int uint;

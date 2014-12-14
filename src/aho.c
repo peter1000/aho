@@ -22,22 +22,28 @@
 
 
 /*
- * Implements hashtable to hold node's children (allows for Unicode support).
+ * Implements an AVL tree to hold node's children (to hold a big alphabet).
  */
-#define ITEM struct node *
-#define KEY(node) node->c
-#include "generic/hashtable.inc"
+#define TREE_ITEM       struct node
+#define TREE_KEY        c
+#define TREE_KEY_TYPE   uint
+#define TREE_PREFIX(x)  avl_##x
+#include "avl.c"
+
+
+struct list lst;
 
 
 static struct node *
 node_new() {
 	struct node *n = malloc_safe(sizeof(struct node));
 
-	n->children = malloc_safe(sizeof(struct hash)); // TODO static alloc
-	hash_init(n->children, AHO_INIT_HASH_SIZE);
+	n->children = malloc_safe(sizeof(avl_tree)); // TODO static alloc
+	avl_init(n->children);
 
 	n->parent = NULL;
 	n->back = NULL;
+	n->back_out = NULL;
 	n->c = 0;
 	n->out = false;
 
@@ -47,7 +53,7 @@ node_new() {
 
 void
 aho_init(struct dict *d) {
-	d->changed = false;
+	d->changed = true; // rebuilds empty dict
 
 	d->root = node_new();
 	d->root->parent = d->root;
@@ -70,7 +76,7 @@ aho_insert(struct dict *d, char *sample) {
 	unsigned char c;
 	while (n != NULL && (c = sample[i++]) != '\0') {
 		prev = n;
-		n = hash_find(n->children, c);
+		n = avl_search(n->children, c);
 
 		if (n != NULL) AHO_DEBUG(AHO_DEBUG_NODE_FORMAT, c);
 	}
@@ -104,7 +110,7 @@ aho_insert(struct dict *d, char *sample) {
 		struct node *n = node_new();
 		n->parent = prev;
 		n->c = c;
-		hash_insert(prev->children, n);
+		avl_insert(prev->children, n);
 		prev = n;
 
 #ifdef  AHO_DEBUG
@@ -127,33 +133,31 @@ aho_insert(struct dict *d, char *sample) {
 }
 
 
+void
+append_child(struct node *n) {
+	list_append(&lst, n);
+}
+
 static void
 rebuild(struct dict *d) {
-	AHO_DEBUG("%s", "Calculating the transition function S...\n");
+	AHO_DEBUG("%s", "Calculating the transition and output functions...\n");
 
-	struct list lst;
 	list_init(&lst);
 
 	d->root->back = d->root;
 	list_append(&lst, d->root);
 
+
 	struct node *n;
 	while ((n = list_shift(&lst)) != NULL) {
 		// enqueue work
-
-		for (uint i = 0; i < n->children->size; i++) {
-			// this would deserve support other than hash_each()
-
-			if (n->children->items[i] != NULL) {
-				list_append(&lst, n->children->items[i]);
-			}
-		}
+		avl_each(n->children, n->children->root, &append_child);
 
 		n->back = n->parent->back;
 		while (true) {
 			if (n->parent == d->root) break;
-			if (hash_contains(n->back->children, n->c)) {
-				n->back = hash_find(n->back->children, n->c);
+			if (avl_search(n->back->children, n->c) != NULL) {
+				n->back = avl_search(n->back->children, n->c);
 				break;
 			}
 
@@ -161,7 +165,19 @@ rebuild(struct dict *d) {
 			n->back = n->back->back;
 		}
 
-		AHO_DEBUG("\tS('%s') := '%s'\n", n->prefix, n->back->prefix);
+		// now that we have n->back, we can compute n->back_out
+
+		n->back_out = n->back;
+		while (n->back_out != d->root) {
+			if (n->back_out->out) {
+				break;
+			}
+
+			n->back_out = n->back_out->back;
+		}
+
+		AHO_DEBUG("\tS('%s') := '%s', ", n->prefix, n->back->prefix);
+		AHO_DEBUG("\tB('%s') := '%s'\n", n->prefix, n->back_out->prefix);
 	}
 
 	list_free(&lst);
@@ -194,9 +210,9 @@ aho_next(struct dict *d, struct state *s, struct match *m) {
 
 	if (s->back_node != d->root) {
 		do {
-			s->back_node = s->back_node->back;
+			s->back_node = s->back_node->back_out;
 		} while (!s->back_node->out && s->back_node != d->root);
-		
+
 		if (s->back_node->out) {
 			m->sample = s->back_node->sample;
 			m->offset = i - strlen(m->sample);
@@ -207,14 +223,14 @@ aho_next(struct dict *d, struct state *s, struct match *m) {
 
 	unsigned char c;
 	while ((c = s->str[i++]) != '\0') {
-		if (hash_contains(n->children, c)) {
-			n = hash_find(n->children, c);
+		if (avl_search(n->children, c)) {
+			n = avl_search(n->children, c);
 			AHO_DEBUG("Have '%s'\n", n->prefix);
 		} else {
 			do {
 				n = n->back;
-				if (hash_contains(n->children, c)) {
-					n = hash_find(n->children, c);
+				if (avl_search(n->children, c)) {
+					n = avl_search(n->children, c);
 					break;
 				}
 			} while (n != d->root);
@@ -231,6 +247,16 @@ aho_next(struct dict *d, struct state *s, struct match *m) {
 
 			return (0);
 		}
+
+		if (n->back_out != d->root) {
+			s->cur_node = s->back_node = n;
+			s->offset = i;
+
+			m->sample = n->back_out->sample;
+			m->offset = i - strlen(m->sample);
+
+			return (0);
+		}
 	}
 
 	return (-1);
@@ -239,10 +265,9 @@ aho_next(struct dict *d, struct state *s, struct match *m) {
 
 void
 node_free(struct node *n) {
-	hash_each(n->children, &node_free);
+	avl_each(n->children, n->children->root, &node_free);
 
-	// free memory used by the hash vs. free struct hash (2 hours to debug)
-	hash_free(n->children);
+	avl_free(n->children);
 	free(n->children);
 
 #ifdef  AHO_DEBUG
