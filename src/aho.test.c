@@ -42,7 +42,7 @@ aho_test_insert_and_search(void) {
 	char *samples[] = {
 		"over",
 		"rover",
-		"ove",    // "ove" WILL NOT be found (covered by "rover")
+		"ove",
 		"ver",
 		"very",
 		"version",
@@ -51,8 +51,8 @@ aho_test_insert_and_search(void) {
 		"neck",
 		"ale",
 		"aleda",
-		"led",    // "led"  WILL NOT be found (covered by "aleda")
-		"leda",   // "leda" WILL be found
+		"led",
+		"leda",
 		"dakar"
 	};
 
@@ -92,10 +92,8 @@ aho_test_insert_and_search(void) {
 
 	for (uint i = 0; i < ARRAY_SIZE(should_find); i++) {
 		bool found = false;
-
 		aho_reset(&d, &s, str);
 		while (aho_next(&d, &s, &m) != -1) {
-
 			if (strcmp(m.sample, should_find[i]) == 0) {
 				ASSERT_EQUAL(m.offset, strstr(str, m.sample) - str);
 				found = true;

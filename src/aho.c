@@ -249,7 +249,8 @@ aho_next(struct dict *d, struct state *s, struct match *m) {
 		}
 
 		if (n->back_out != d->root) {
-			s->cur_node = s->back_node = n;
+			s->cur_node = n;
+			s->back_node = n->back_out;
 			s->offset = i;
 
 			m->sample = n->back_out->sample;

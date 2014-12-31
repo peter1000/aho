@@ -64,7 +64,7 @@ aho_test_adhoc(void) {
 int
 main(void) {
 	printf("Running all tests...\n");
-	aho_test_adhoc();
+	//aho_test_adhoc();
 
 	strbuf_tests();
 	hash_tests();
