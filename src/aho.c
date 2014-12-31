@@ -89,6 +89,7 @@ aho_insert(struct dict *d, char *sample) {
 
 			n->out = true;
 			n->sample = sample;
+			n->sample_strlen = strlen(sample);
 			return (0);
 		}
 
@@ -122,6 +123,7 @@ aho_insert(struct dict *d, char *sample) {
 
 	prev->out = true; // sample ends here
 	prev->sample = sample;
+	prev->sample_strlen = strlen(sample);
 
 	AHO_DEBUG(" ... Done.\n");
 
@@ -215,7 +217,7 @@ aho_next(struct dict *d, struct state *s, struct match *m) {
 
 		if (s->back_node->out) {
 			m->sample = s->back_node->sample;
-			m->offset = i - strlen(m->sample);
+			m->offset = i - s->back_node->sample_strlen;
 
 			return (0);
 		}
@@ -243,7 +245,7 @@ aho_next(struct dict *d, struct state *s, struct match *m) {
 			s->offset = i;
 
 			m->sample = n->sample;
-			m->offset = i - strlen(m->sample);
+			m->offset = i - n->sample_strlen;
 
 			return (0);
 		}
@@ -254,7 +256,7 @@ aho_next(struct dict *d, struct state *s, struct match *m) {
 			s->offset = i;
 
 			m->sample = n->back_out->sample;
-			m->offset = i - strlen(m->sample);
+			m->offset = i - n->back_out->sample_strlen;
 
 			return (0);
 		}

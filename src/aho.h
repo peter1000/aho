@@ -38,12 +38,13 @@
 struct node {
 	struct node *parent, *back, *back_out; // back_out: for output function
 	avl_tree *children; // generic hashtable (see aho.c)
-	uint c;
-	char *sample; 
-	bool out;
+	uint c; // char code
+	char *sample; // the sample that ends in this node (for output states)
+	uint sample_strlen; // length of the sample (for output states)
+	bool out; // is this output state?
 
 #ifdef  AHO_DEBUG
-	char *prefix;
+	char *prefix; // useful when debugging: path to this node
 #endif
 };
 
@@ -62,7 +63,7 @@ struct dict {
  */
 struct state {
 	char *str;
-	struct node *cur_node, *back_node; // node for backtracking
+	struct node *cur_node, *back_node; // node used by output function
 	uint offset;
 };
 
@@ -102,6 +103,9 @@ void aho_reset(struct dict *d, struct state *s, char *str);
 
 /*
  * Get next matched sample.
+ *
+ * Upon successful match, returns 0 and sets @m accordingly. Otherwise, returns
+ * a -1.
  *
  * If the dictionary changed, the data structure needs to be rebuilt; this is
  * O(J log(|\sigma|)), where J = |size of all needles combined|.
